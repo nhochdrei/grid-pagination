@@ -5,6 +5,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.data.provider.DataCommunicator;
 import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.data.provider.Query;
 import com.vaadin.flow.data.provider.QuerySortOrder;
@@ -13,6 +14,7 @@ import com.vaadin.flow.shared.Registration;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * Grid component where scrolling feature is replaced with a pagination
@@ -30,6 +32,7 @@ public class PaginatedGrid<T> extends Grid<T> {
     private PaginationLocation paginationLocation = PaginationLocation.BOTTOM;
 
     private DataProvider<T, ?> dataProvider;
+    private Registration dataProviderChangeRegistration;
 
 
     public PaginatedGrid() {
@@ -43,8 +46,8 @@ public class PaginatedGrid<T> extends Grid<T> {
     }
 
     private void init() {
-        this.dataProvider = super.getDataProvider();
-        this.setHeightByRows(true);
+        this.dataProvider = new DataCommunicator.EmptyDataProvider<>();
+        this.setAllRowsVisible(true);
         pagination.addPageChangeListener(e -> doCalcs(e.getNewPage()));
         addSortListener(e -> doCalcs(pagination.getPage()));
     }
@@ -52,6 +55,7 @@ public class PaginatedGrid<T> extends Grid<T> {
     /**
      * Sets a container component for the pagination component to be placed within.
      * If a container is set the PaginationLocation will be ignored.
+     *
      * @param paginationContainer
      */
     public void setPaginationContainer(Component paginationContainer) {
@@ -67,7 +71,7 @@ public class PaginatedGrid<T> extends Grid<T> {
         wrapper.getElement().getStyle().set("display", "flex");
         wrapper.getElement().getStyle().set("justify-content", "center");
 
-        if (paginationContainer!=null){
+        if (paginationContainer != null) {
             paginationContainer.getElement().insertChild(0, wrapper.getElement());
         } else {
             getParent().ifPresent(p -> {
@@ -87,12 +91,10 @@ public class PaginatedGrid<T> extends Grid<T> {
     private void doCalcs(int newPage) {
         int offset = newPage > 0 ? (newPage - 1) * this.getPageSize() : 0;
 
-        InnerQuery query = new InnerQuery<>(offset);
-
+        InnerQuery query = new InnerQuery<>(offset, getPageSize());
         pagination.setTotal(dataProvider.size(query));
 
-        super.setDataProvider(DataProvider.fromStream(dataProvider.fetch(query)));
-
+        setDataProviderInternal(DataProvider.fromStream((Stream<T>) dataProvider.fetch(query)));
     }
 
     public void refreshPaginator() {
@@ -110,7 +112,6 @@ public class PaginatedGrid<T> extends Grid<T> {
     public void setPageSize(int pageSize) {
         super.setPageSize(pageSize);
         refreshPaginator();
-
     }
 
     public int getPage() {
@@ -138,8 +139,8 @@ public class PaginatedGrid<T> extends Grid<T> {
     }
 
     @Override
-    public void setHeightByRows(boolean heightByRows) {
-        super.setHeightByRows(true);
+    public void setAllRowsVisible(boolean allRowsVisible) {
+        super.setAllRowsVisible(true);
     }
 
     /**
@@ -167,16 +168,42 @@ public class PaginatedGrid<T> extends Grid<T> {
 
     @Override
     public void setDataProvider(DataProvider<T, ?> dataProvider) {
-        Objects.requireNonNull(dataProvider, "DataProvider shoul not be null!");
-
-        if (!Objects.equals(this.dataProvider, dataProvider)) {
-            this.dataProvider = dataProvider;
-            this.dataProvider.addDataProviderListener(event -> {
-                refreshPaginator();
-            });
-            refreshPaginator();
+        Objects.requireNonNull(dataProvider, "DataProvider should not be null!");
+        if (Objects.equals(this.dataProvider, dataProvider)) {
+            return;
         }
 
+        this.dataProvider = dataProvider;
+        handleDataProviderChange(dataProvider);
+
+        deselectAll();
+    }
+
+    @Override
+    public DataProvider<T, ?> getDataProvider() {
+        return dataProvider;
+    }
+
+    private void setDataProviderInternal(DataProvider<T, ?> dataProvider) {
+        getDataCommunicator().setDataProvider(dataProvider, null);
+    }
+
+    private void handleDataProviderChange(DataProvider<T, ?> dataProvider) {
+        onDataProviderChange();
+
+        if (dataProviderChangeRegistration != null) {
+            dataProviderChangeRegistration.remove();
+        }
+
+        dataProviderChangeRegistration = dataProvider
+                .addDataProviderListener(event -> onDataProviderChange());
+    }
+
+    @Override
+    protected void onDataProviderChange() {
+        super.onDataProviderChange();
+
+        refreshPaginator();
     }
 
     /**
@@ -207,15 +234,15 @@ public class PaginatedGrid<T> extends Grid<T> {
     private class InnerQuery<F> extends Query<T, F> {
 
         InnerQuery() {
-            this(0);
+            this(0, Integer.MAX_VALUE);
         }
 
-        InnerQuery(int offset) {
-            super(offset, getPageSize(), getDataCommunicator().getBackEndSorting(), getDataCommunicator().getInMemorySorting(), null);
+        InnerQuery(int offset, int pageSize) {
+            super(offset, pageSize, getDataCommunicator().getBackEndSorting(), getDataCommunicator().getInMemorySorting(), null);
         }
 
-        InnerQuery(int offset, List<QuerySortOrder> sortOrders, SerializableComparator<T> serializableComparator) {
-            super(offset, getPageSize(), sortOrders, serializableComparator, null);
+        InnerQuery(int offset, int pageSize, List<QuerySortOrder> sortOrders, SerializableComparator<T> serializableComparator) {
+            super(offset, pageSize, sortOrders, serializableComparator, null);
         }
 
     }
