@@ -45,6 +45,16 @@ public class PaginatedGrid<T> extends Grid<T> {
         init();
     }
 
+    public PaginatedGrid(int pageSize) {
+        super(pageSize);
+        init();
+    }
+
+    public PaginatedGrid(Class<T> beanType, boolean autoCreateColumns) {
+        super(beanType, autoCreateColumns);
+        init();
+    }
+
     private void init() {
         this.dataProvider = new DataCommunicator.EmptyDataProvider<>();
         this.setAllRowsVisible(true);
@@ -94,7 +104,10 @@ public class PaginatedGrid<T> extends Grid<T> {
         InnerQuery query = new InnerQuery<>(offset, getPageSize());
         pagination.setTotal(dataProvider.size(query));
 
-        setDataProviderInternal(DataProvider.fromStream((Stream<T>) dataProvider.fetch(query)));
+        getDataCommunicator().setDataProvider(
+                DataProvider.fromStream((Stream<T>) dataProvider.fetch(query)),
+                null
+        );
     }
 
     public void refreshPaginator() {
@@ -182,10 +195,6 @@ public class PaginatedGrid<T> extends Grid<T> {
     @Override
     public DataProvider<T, ?> getDataProvider() {
         return dataProvider;
-    }
-
-    private void setDataProviderInternal(DataProvider<T, ?> dataProvider) {
-        getDataCommunicator().setDataProvider(dataProvider, null);
     }
 
     private void handleDataProviderChange(DataProvider<T, ?> dataProvider) {
