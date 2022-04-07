@@ -95,7 +95,6 @@ public class PaginatedGrid<T> extends Grid<T> {
                 p.getElement().insertChild(indexOfChild, wrapper.getElement());
             });
         }
-        doCalcs(0);
     }
 
     private void doCalcs(int newPage) {
@@ -187,7 +186,7 @@ public class PaginatedGrid<T> extends Grid<T> {
         }
 
         this.dataProvider = dataProvider;
-        handleDataProviderChange(dataProvider);
+        handleExternalDataProviderChange(dataProvider);
 
         deselectAll();
     }
@@ -197,21 +196,18 @@ public class PaginatedGrid<T> extends Grid<T> {
         return dataProvider;
     }
 
-    private void handleDataProviderChange(DataProvider<T, ?> dataProvider) {
-        onDataProviderChange();
+    private void handleExternalDataProviderChange(DataProvider<T, ?> dataProvider) {
+        onExternalDataProviderChange();
 
         if (dataProviderChangeRegistration != null) {
             dataProviderChangeRegistration.remove();
         }
 
         dataProviderChangeRegistration = dataProvider
-                .addDataProviderListener(event -> onDataProviderChange());
+                .addDataProviderListener(event -> onExternalDataProviderChange());
     }
 
-    @Override
-    protected void onDataProviderChange() {
-        super.onDataProviderChange();
-
+    protected void onExternalDataProviderChange() {
         refreshPaginator();
     }
 
