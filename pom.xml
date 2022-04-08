@@ -5,8 +5,7 @@
     <artifactId>grid-pagination</artifactId>
     <version>2.0.10+simu1</version>
     <name>Grid Pagination</name>
-    <description>Integration of lit-pagination for Vaadin 14.x</description>
-
+    <description>Integration of lit-pagination for Vaadin 23.x</description>
     <properties>
         <vaadin.version>23.0.3</vaadin.version>
 
